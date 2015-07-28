@@ -30,6 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #ifndef UMISEVERITY_HPP
 #define UMISEVERITY_HPP
 
+#include<string>
+
 namespace umi{
   /**
     \brief Severity of the message
@@ -52,6 +54,14 @@ namespace umi{
     Informational = 6,
     Debug = 7
   };
+  /**
+    \brief Helper method to transform from the input string to the
+    output severity.
+    It doesn't matter if the string is in upper/lower case, internally
+    it will be transformed to the right case and checked against the strings.
+    If not found Debug level is returned
+  */
+  umi::Severity string_to_severity(const std::string& value);
 }
 
 #endif // UMISEVERITY_HPP

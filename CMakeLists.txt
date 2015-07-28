@@ -15,7 +15,8 @@ add_library(umilog SHARED umilog.cpp
   umisocket.cpp
   umisocket.hpp
   umifacility.hpp
-  umiseverity.hpp)
+  umiseverity.hpp
+  umiseverity.cpp)
 
 install(TARGETS umilog
   RUNTIME DESTINATION bin
