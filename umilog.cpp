@@ -33,7 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <array>
 #include <cstdarg>
 #include <sstream>
-#include <unistd.h>
 #include <iostream>
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>

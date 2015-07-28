@@ -41,6 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <boost/asio.hpp>
 #include <thread>
 #include <queue>
+#include <atomic>
 
 namespace umi{
   class Socket;

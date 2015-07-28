@@ -85,6 +85,7 @@ umi::Connection& umi::Connection::operator=(Connection&& val)
   m_host = std::move(val.m_host);
   m_port = std::move(val.m_port);
   m_ca = std::move(val.m_ca);
+  return *this;
 }
 
 void umi::Connection::setTLSCAFile(const std::string& file)

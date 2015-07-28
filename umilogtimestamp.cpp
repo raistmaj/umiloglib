@@ -33,6 +33,91 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <array>
 #include <iostream>
 
+// clock_gettime is missing on windows
+#ifdef _WIN32
+#include <windows.h>
+#include <mutex>
+typedef unsigned int clockid_t;
+#ifndef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC 1
+#endif
+
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME 2
+#endif
+
+std::once_flag flag_frequency;
+std::once_flag flag_uepoch;
+
+static int clock_gettime(int id, struct timespec *ts)
+{
+  if (id == CLOCK_MONOTONIC) {
+    static LARGE_INTEGER frequency;
+    LARGE_INTEGER count;
+    int64_t numberOfSeconds;
+
+    // Initialize the frequency in a safe mode
+    // I don't use thread local for the frequency as apple clang doesn't support it
+    try {
+      std::call_once(flag_frequency, 
+        []() { 
+          if (QueryPerformanceCounter(&frequency) == FALSE) { 
+            throw std::exception(); 
+          }; 
+      });
+    }
+    catch (...) {
+      return -1;
+    }
+
+    // Ticks
+    if (QueryPerformanceCounter(&count) == FALSE) {
+      return -1;
+    }
+
+    // Gets the nano seconds
+    numberOfSeconds = static_cast<int64_t>(
+      static_cast<double>(count.QuadPart) / frequency.QuadPart * 1000000000);
+    ts->tv_sec = count.QuadPart / frequency.QuadPart;
+    ts->tv_nsec = numberOfSeconds % 1000000000;
+  }
+  else if (id == CLOCK_REALTIME) {
+    static ULARGE_INTEGER unixEpoch;
+    try {
+      std::call_once(flag_uepoch,
+        []() {
+          SYSTEMTIME unixEpochSt = { 1970, 1, 0, 1, 0, 0, 0, 0 };
+          FILETIME unixEpochFt;
+          if (SystemTimeToFileTime(&unixEpochSt, &unixEpochFt) == FALSE) {
+            throw std::exception();
+          }
+          unixEpoch.LowPart = unixEpochFt.dwLowDateTime;
+          unixEpoch.QuadPart = unixEpochFt.dwHighDateTime;
+      });
+    }
+    catch (...) {
+      return -1;
+    }
+    ULARGE_INTEGER currentTime;
+    FILETIME currentTimeFile;
+
+    // Returns the current UTC in 100ns intervals since Jan 1 1601
+    GetSystemTimePreciseAsFileTime(&currentTimeFile);
+    currentTime.LowPart = currentTimeFile.dwLowDateTime;
+    currentTime.HighPart = currentTimeFile.dwHighDateTime;
+
+    // Time from epoch
+    ts->tv_sec = (currentTime.QuadPart - unixEpoch.QuadPart) / 10000000;
+    ts->tv_nsec = ((currentTime.QuadPart - unixEpoch.QuadPart) % 10000000) * 100;
+  }
+  else {
+    return -1;
+  }
+  return 0;
+}
+
+#endif
+
 std::string umi::Timestamp::getTimestamp(uint32_t precision){
   // We don't allow more precision
   if(precision > 6) {
@@ -45,7 +130,11 @@ std::string umi::Timestamp::getTimestamp(uint32_t precision){
     std::string _timezone;
     std::array<char,256> buffer;
     struct std::tm timeinfo;
+#ifndef _WIN32
     localtime_r(&_actualTime.tv_sec,&timeinfo);
+#else
+    localtime_s(&timeinfo, &_actualTime.tv_sec);
+#endif
     strftime(buffer.data(),buffer.size(),"%Y-%m-%dT%T",&timeinfo);
     _date = buffer.data();
     // 1999-12-01T12:14:45
