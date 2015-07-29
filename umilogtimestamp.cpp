@@ -29,15 +29,16 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include "umilogtimestamp.hpp"
 #include <boost/lexical_cast.hpp>
-#include <ctime>
 #include <array>
 #include <iostream>
-
+#include <ctime>
 // clock_gettime is missing on windows
 #ifdef _WIN32
 #include <windows.h>
 #include <mutex>
-typedef unsigned int clockid_t;
+#endif
+
+#ifdef _WIN32
 #ifndef CLOCK_MONOTONIC
 #define CLOCK_MONOTONIC 1
 #endif
@@ -127,7 +128,7 @@ std::string umi::Timestamp::getTimestamp(uint32_t precision){
   if(clock_gettime(CLOCK_REALTIME,&_actualTime) == 0) {
     std::string _precisionSeconds;
     std::string _date;
-    std::string _timezone;
+    std::string timezone;
     std::array<char,256> buffer;
     struct std::tm timeinfo;
 #ifndef _WIN32
@@ -147,13 +148,13 @@ std::string umi::Timestamp::getTimestamp(uint32_t precision){
     }
     strftime(buffer.data(),buffer.size(),"%z",&timeinfo);
     if(strnlen(buffer.data(),buffer.size()) >= 5) {
-      _timezone.insert(_timezone.end(),buffer.data(),buffer.data()+3);
-      _timezone += ":";
-      _timezone.insert(_timezone.end(),buffer.data()+3,buffer.data()+5);
+      timezone.insert(timezone.end(),buffer.data(),buffer.data()+3);
+      timezone += ":";
+      timezone.insert(timezone.end(),buffer.data()+3,buffer.data()+5);
     }else {
-      _timezone += 'Z';
+      timezone += 'Z';
     }
-    return _date + _precisionSeconds + _timezone;
+    return _date + _precisionSeconds + timezone;
   }else {
     // Throw exception
   }
