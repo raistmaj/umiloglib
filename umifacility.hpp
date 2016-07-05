@@ -31,37 +31,39 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define UMIFACILITY_HPP
 
 namespace umi {
-  /**
-    \brief Facility
+    namespace log {
+        /**
+          \brief Facility
 
-    Facility values MUST be in the range of 0 to 23 inclusive.
-  */
-  enum class Facility : int {
-    Kernel_Messages = 0,
-    UserLevel_Messages = 1,
-    Mail_System = 2,
-    System_Daemons = 3,
-    Security_Authorization_Messages = 4,
-    Messages_Generated_Internally_By_Syslogd = 5,
-    Line_Printer_Subsystem = 6,
-    Network_News_Subsystem = 7,
-    UUCP_Subsystem = 8,
-    Clock_Daemon = 9,
-    Security_Authorization_Messages_2 = 10,
-    FTP_Daemon = 11,
-    NTP_Subsystem = 12,
-    Log_Audit = 13,
-    Log_Aler = 14,
-    Clock_Daemon_2 = 15,
-    Local_Use_0 = 16,
-    Local_Use_1 = 17,
-    Local_Use_2 = 18,
-    Local_Use_3 = 19,
-    Local_Use_4 = 20,
-    Local_Use_5 = 21,
-    Local_Use_6 = 22,
-    Local_Use_7 = 23
-  };
+          Facility values MUST be in the range of 0 to 23 inclusive.
+        */
+        enum class facility : int {
+            Kernel_Messages = 0,
+            UserLevel_Messages = 1,
+            Mail_System = 2,
+            System_Daemons = 3,
+            Security_Authorization_Messages = 4,
+            Messages_Generated_Internally_By_Syslogd = 5,
+            Line_Printer_Subsystem = 6,
+            Network_News_Subsystem = 7,
+            UUCP_Subsystem = 8,
+            Clock_Daemon = 9,
+            Security_Authorization_Messages_2 = 10,
+            FTP_Daemon = 11,
+            NTP_Subsystem = 12,
+            Log_Audit = 13,
+            Log_Alert = 14,
+            Clock_Daemon_2 = 15,
+            Local_Use_0 = 16,
+            Local_Use_1 = 17,
+            Local_Use_2 = 18,
+            Local_Use_3 = 19,
+            Local_Use_4 = 20,
+            Local_Use_5 = 21,
+            Local_Use_6 = 22,
+            Local_Use_7 = 23
+        };
+    }
 }
 
 #endif // UMIFACILITY_HPP

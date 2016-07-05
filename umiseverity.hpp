@@ -31,37 +31,60 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define UMISEVERITY_HPP
 
 #include<string>
+#include <boost/algorithm/string.hpp>
+#include <unordered_map>
 
-namespace umi{
-  /**
-    \brief Severity of the message
+namespace umi {
+    namespace log {
+        /**
+          \brief Severity of the message
 
-    Facility and Severity values are not normative but often used.  They
-    are described in the following tables for purely informational
-    purposes.
+          Facility and Severity values are not normative but often used.  They
+          are described in the following tables for purely informational
+          purposes.
 
-    Each message Priority also has a decimal Severity level indicator.
-    These are described in the following table along with their numerical
-    values.  Severity values MUST be in the range of 0 to 7 inclusive.
-  */
-  enum class Severity : int {
-    Emergency = 0,
-    Alert = 1,
-    Critical = 2,
-    Error = 3,
-    Warning = 4,
-    Notice = 5,
-    Informational = 6,
-    Debug = 7
-  };
-  /**
-    \brief Helper method to transform from the input string to the
-    output severity.
-    It doesn't matter if the string is in upper/lower case, internally
-    it will be transformed to the right case and checked against the strings.
-    If not found Debug level is returned
-  */
-  umi::Severity string_to_severity(const std::string& value);
+          Each message Priority also has a decimal Severity level indicator.
+          These are described in the following table along with their numerical
+          values.  Severity values MUST be in the range of 0 to 7 inclusive.
+        */
+        enum class severity : int {
+            Emergency = 0,
+            Alert = 1,
+            Critical = 2,
+            Error = 3,
+            Warning = 4,
+            Notice = 5,
+            Informational = 6,
+            Debug = 7
+        };
+
+        /**
+          \brief Helper method to transform from the input string to the
+          output severity.
+          It doesn't matter if the string is in upper/lower case, internally
+          it will be transformed to the right case and checked against the strings.
+          If not found Debug level is returned
+        */
+        umi::log::severity string_to_severity(const std::string &value) {
+            static const std::unordered_map<std::string, umi::log::severity> unordered_map_string_to_severity =
+                    {
+                            {"emergency",     umi::log::severity::Emergency},
+                            {"alert",         umi::log::severity::Alert},
+                            {"critical",      umi::log::severity::Critical},
+                            {"error",         umi::log::severity::Error},
+                            {"warning",       umi::log::severity::Warning},
+                            {"notice",        umi::log::severity::Notice},
+                            {"informational", umi::log::severity::Informational},
+                            {"debug",         umi::log::severity::Debug}
+                    };
+            std::string lcValue = boost::to_lower_copy(value);
+            const auto element = unordered_map_string_to_severity.find(lcValue);
+            if (element == unordered_map_string_to_severity.end()) {
+                return umi::log::severity::Debug;
+            }
+            return element->second;
+        }
+    }
 }
 
 #endif // UMISEVERITY_HPP
