@@ -4,17 +4,10 @@ project(umilog)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fPIC")
 
-add_library(umilog SHARED umilog.cpp
-        umilog.hpp
-        umilogtimestamp.hpp
-        umilocaldata.hpp
-        umilogconnection.hpp
-        umisocket_priv.hpp
-        umifacility.hpp
-        umiseverity.hpp)
+add_executable(umilog main.cpp)
 
-install(TARGETS umilog
-        RUNTIME DESTINATION bin
-        ARCHIVE DESTINATION bin
-        LIBRARY DESTINATION bin)
+target_link_libraries(umilog boost_system pthread ssl crypto gtest gtest_main)
+
+
+install(TARGETS umilog RUNTIME DESTINATION bin)
 
