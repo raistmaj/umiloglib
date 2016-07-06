@@ -658,7 +658,7 @@ namespace umi {
 
               The actual formula is facility * 8 + severity
             */
-            inline static int get_priority(umi::log::facility facility, umi::log::severity severity) {
+            inline static constexpr int get_priority(umi::log::facility facility, umi::log::severity severity) {
                 return static_cast<int>(facility) * 8 + static_cast<int>(severity);
             }
 
