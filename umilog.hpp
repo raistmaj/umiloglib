@@ -630,6 +630,35 @@ namespace umi {
         };
 
         /**
+           \brief Class to use structured data on the logs
+
+           STRUCTURED-DATA provides a mechanism to express information in a well
+           defined, easily parseable and interpretable data format.  There are
+           multiple usage scenarios.  For example, it may express meta-
+           information about the syslog message or application-specific
+           information such as traffic counters or IP addresses.
+
+           STRUCTURED-DATA can contain zero, one, or multiple structured data
+           elements, which are referred to as "SD-ELEMENT" in this document.
+         */
+        class structured_data {
+        public:
+            struct sd_element {
+                // Takes input string and returns an scaped string
+                std::string escape(const std::string &val) const {
+
+                }
+                void add_param(const std::string &param_name, const std::string &param_value) {
+                    std::string local_value(sd_element::escape(param_value));
+                }
+                std::string m_id;
+                std::vector<std::pair<std::string, std::string>> m_params;
+            };
+        protected:
+
+        };
+
+        /**
           \brief Class to represent the actual log of data
 
           A instance of Logger will open a connection against the specified
