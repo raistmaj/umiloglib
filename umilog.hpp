@@ -34,7 +34,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #include <functional>
 #include <iostream>
 #include <unordered_map>
-#include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/lexical_cast.hpp>
@@ -62,8 +61,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 #define CLOCK_REALTIME 2
 #endif
 
-std::once_flag flag_frequency;
-std::once_flag flag_uepoch;
+namespace umi {
+    namespace log {
+        static std::once_flag flag_frequency;
+        static std::once_flag flag_uepoch;
+    }
+}
+
 
 static int clock_gettime(int id, struct timespec *ts)
 {
@@ -75,7 +79,7 @@ static int clock_gettime(int id, struct timespec *ts)
     // Initialize the frequency in a safe mode
     // I don't use thread local for the frequency as apple clang doesn't support it
     try {
-      std::call_once(flag_frequency,
+      std::call_once(umi::log::flag_frequency,
         []() {
           if (QueryPerformanceCounter(&frequency) == FALSE) {
             throw std::exception();
@@ -100,7 +104,7 @@ static int clock_gettime(int id, struct timespec *ts)
   else if (id == CLOCK_REALTIME) {
     static ULARGE_INTEGER unixEpoch;
     try {
-      std::call_once(flag_uepoch,
+      std::call_once(umi::log::flag_uepoch,
         []() {
           SYSTEMTIME unixEpochSt = { 1970, 1, 0, 1, 0, 0, 0, 0 };
           FILETIME unixEpochFt;
@@ -841,11 +845,11 @@ namespace umi {
                     m_socket->async_send_to(
                             boost::asio::buffer(*message),
                             *m_endpoint,
-                            boost::bind(&umi::log::socket_udp::handler_send, this,
-                                        message,
-                                        0,
-                                        boost::asio::placeholders::error,
-                                        boost::asio::placeholders::bytes_transferred));
+                            std::bind(&umi::log::socket_udp::handler_send, this,
+                                      message,
+                                      0,
+                                      std::placeholders::_1,
+                                      std::placeholders::_2));
                 }
             }
 
@@ -858,11 +862,11 @@ namespace umi {
                         m_socket->async_send_to(
                                 boost::asio::buffer((*message).substr(actual_position + dataSent)),
                                 *m_endpoint,
-                                boost::bind(&umi::log::socket_udp::handler_send, this,
-                                            message, //!< Thanks to this and the shared_ptr the message will not die
-                                            (actual_position + dataSent),
-                                            boost::asio::placeholders::error,
-                                            boost::asio::placeholders::bytes_transferred));
+                                std::bind(&umi::log::socket_udp::handler_send, this,
+                                          message, //!< Thanks to this and the shared_ptr the message will not die
+                                          (actual_position + dataSent),
+                                          std::placeholders::_1,
+                                          std::placeholders::_2));
                     }
                 }
             }
@@ -900,9 +904,9 @@ namespace umi {
                     boost::asio::ip::tcp::endpoint endPoint = *_endpoint;
                     m_socket->async_connect(
                             endPoint,
-                            boost::bind(&umi::log::socket_tcp::handle_on_connect, this,
-                                        boost::asio::placeholders::error,
-                                        ++_endpoint));
+                            std::bind(&umi::log::socket_tcp::handle_on_connect, this,
+                                      std::placeholders::_1,
+                                      ++_endpoint));
                 }
             }
 
@@ -916,11 +920,11 @@ namespace umi {
                 if (m_isOpen && m_socket) {
                     m_socket->async_send(
                             boost::asio::buffer(*message),
-                            boost::bind(&umi::log::socket_tcp::handler_send, this,
-                                        message, //!< Thanks to this and the shared_ptr the message will not die
-                                        0,
-                                        boost::asio::placeholders::error,
-                                        boost::asio::placeholders::bytes_transferred));
+                            std::bind(&umi::log::socket_tcp::handler_send, this,
+                                      message, //!< Thanks to this and the shared_ptr the message will not die
+                                      0,
+                                      std::placeholders::_1,
+                                      std::placeholders::_2));
                 }
             }
 
@@ -935,9 +939,9 @@ namespace umi {
                         boost::asio::ip::tcp::endpoint endPoint = *endpointIT;
                         m_socket->async_connect(
                                 endPoint,
-                                boost::bind(&umi::log::socket_tcp::handle_on_connect, this,
-                                            boost::asio::placeholders::error,
-                                            ++endpointIT));
+                                std::bind(&umi::log::socket_tcp::handle_on_connect, this,
+                                          std::placeholders::_1,
+                                          ++endpointIT));
                     }
                 }
             }
@@ -950,11 +954,11 @@ namespace umi {
                     if (m_socket && m_isOpen && (last_position + dataSent) < message->size()) {
                         m_socket->async_send(
                                 boost::asio::buffer((*message).substr(last_position + dataSent)),
-                                boost::bind(&umi::log::socket_tcp::handler_send, this,
-                                            message,
-                                            last_position + dataSent,
-                                            boost::asio::placeholders::error,
-                                            boost::asio::placeholders::bytes_transferred));
+                                std::bind(&umi::log::socket_tcp::handler_send, this,
+                                          message,
+                                          last_position + dataSent,
+                                          std::placeholders::_1,
+                                          std::placeholders::_2));
                     }
                 }
             }
@@ -1001,10 +1005,10 @@ namespace umi {
                         boost::asio::ip::tcp::resolver::iterator _endpoint(_resolver.resolve(_query));
                         boost::asio::ip::tcp::endpoint endPoint = *_endpoint;
                         m_socket->lowest_layer().async_connect(endPoint,
-                                                               boost::bind(&umi::log::socket_tls::handle_on_connect,
-                                                                           this,
-                                                                           boost::asio::placeholders::error,
-                                                                           ++_endpoint));
+                                                               std::bind(&umi::log::socket_tls::handle_on_connect,
+                                                                         this,
+                                                                         std::placeholders::_1,
+                                                                         ++_endpoint));
                     }
                 }
             }
@@ -1020,11 +1024,11 @@ namespace umi {
                     boost::asio::async_write(
                             *m_socket,
                             boost::asio::buffer(*message),
-                            boost::bind(&umi::log::socket_tls::handler_send, this,
-                                        message, //!< Thanks to this and the shared_ptr the message will not die
-                                        0,
-                                        boost::asio::placeholders::error,
-                                        boost::asio::placeholders::bytes_transferred));
+                            std::bind(&umi::log::socket_tls::handler_send, this,
+                                      message, //!< Thanks to this and the shared_ptr the message will not die
+                                      0,
+                                      std::placeholders::_1,
+                                      std::placeholders::_2));
                 }
             }
 
@@ -1033,18 +1037,19 @@ namespace umi {
                 if (m_socket) {
                     if (!errorCode) {
                         m_socket->async_handshake(boost::asio::ssl::stream_base::client,
-                                                  boost::bind(&umi::log::socket_tls::handle_on_handshake, this,
-                                                              boost::asio::placeholders::error));
+                                                  std::bind(&umi::log::socket_tls::handle_on_handshake,
+                                                            this,
+                                                            std::placeholders::_1));
                     } else if (endpointIT != boost::asio::ip::tcp::resolver::iterator()) {
                         // try next
                         m_socket->lowest_layer().close();
                         boost::asio::ip::tcp::endpoint endPoint = *endpointIT;
                         m_socket->lowest_layer().async_connect(
                                 endPoint,
-                                boost::bind(&umi::log::socket_tls::handle_on_connect,
-                                            this,
-                                            boost::asio::placeholders::error,
-                                            ++endpointIT));
+                                std::bind(&umi::log::socket_tls::handle_on_connect,
+                                          this,
+                                          std::placeholders::_1,
+                                          ++endpointIT));
                     }
                 }
             }
@@ -1064,11 +1069,11 @@ namespace umi {
                         boost::asio::async_write(
                                 *m_socket,
                                 boost::asio::buffer((*message).substr(last_position + dataSent)),
-                                boost::bind(&umi::log::socket_tls::handler_send, this,
-                                            message, //!< Thanks to this and the shared_ptr the message will not die
-                                            last_position + dataSent,
-                                            boost::asio::placeholders::error,
-                                            boost::asio::placeholders::bytes_transferred));
+                                std::bind(&umi::log::socket_tls::handler_send, this,
+                                          message, //!< Thanks to this and the shared_ptr the message will not die
+                                          last_position + dataSent,
+                                          std::placeholders::_1,
+                                          std::placeholders::_2));
                     }
                 }
             }
