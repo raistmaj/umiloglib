@@ -643,19 +643,143 @@ namespace umi {
          */
         class structured_data {
         public:
-            struct sd_element {
-                // Takes input string and returns an scaped string
-                std::string escape(const std::string &val) const {
+            /**
+             * Internal element stored in the structured data
+             * */
+            class sd_element {
+            public:
+                sd_element() {}
+                /**
+                 * constructor of the sd_element
+                 * \param id with the identifier we want to use in this element
+                 * */
+                sd_element(const std::string &id) : m_id(boost::algorithm::trim_copy(id)) { }
 
+                /**
+                 * constructor of the element using id and parameters
+                 * \param id with the identifier we want to use in this element
+                 * \param param with the parameters we will associate with the id
+                 * */
+                sd_element(const std::string &id, const std::vector<std::pair<std::string, std::string>> &param)
+                        : m_id(boost::algorithm::trim_copy(id)),
+                          m_params(param) { }
+
+                sd_element(const sd_element &c)
+                        : m_id(c.m_id),
+                          m_params(c.m_params) { }
+
+                sd_element(sd_element &&c)
+                        : m_id(std::move(c.m_id)),
+                          m_params(std::move(c.m_params)) { }
+
+                // Takes input string and returns an escaped string
+                std::string escape(const std::string &val) const {
+                    std::string ret_val;
+                    ret_val.reserve(val.length());
+                    for (auto &&a: val) {
+                        if (a == '\"' || a == '\\' || a == ']') {
+                            ret_val += "\\";
+                        }
+                        ret_val += a;
+                    }
+                    return ret_val;
                 }
+
+                sd_element & operator=(sd_element &s) {
+                    if (this != &s) {
+                        m_id = s.m_id;
+                        m_params = s.m_params;
+                    }
+                    return *this;
+                }
+
+                sd_element & operator=(sd_element &&s) {
+                    if (this != &s) {
+                        m_id = std::move(s.m_id);
+                        m_params = std::move(s.m_params);
+                    }
+                    return *this;
+                }
+
+                /**
+                  \brief Adds one param to the element escaping the value. This is important
+                  as it will be supposed to non be escaped.
+
+                  \param param_name containing the name of the parameter we want to use
+                  \param param_value containing the value of the parameter
+                 */
                 void add_param(const std::string &param_name, const std::string &param_value) {
-                    std::string local_value(sd_element::escape(param_value));
+                    m_params.push_back(std::make_pair(param_name, sd_element::escape(param_value)));
                 }
+
+                /**
+                  \brief Adds one param to the element without scaping the value. This is important
+                  as it will be supposed to be already scaped and may produce errors in the destination.
+
+                  \param param_name containing the name of the parameter we want to use
+                  \param param_value containing the value of the parameter
+                 */
+                void add_param_non_escape(const std::string &param_name, const std::string &param_value) {
+                    m_params.push_back(std::make_pair(param_name, param_value));
+                }
+
+                template<typename SS>
+                friend SS &operator<<(SS &st, const sd_element &val) {
+                    st << "[" << val.m_id << " ";
+                    for (std::size_t i = 0; i < val.m_params.size(); ++i) {
+                        if (i > 0) {
+                            st << " ";
+                        }
+                        st << val.m_params[i].first << "=\"" << val.m_params[i].second << "\"";
+                    }
+                    st << "]";
+                    return st;
+                }
+
+            protected:
+                /**
+                    ID of the element
+                 */
                 std::string m_id;
+                /**
+                    PARAMS of the element
+                 */
                 std::vector<std::pair<std::string, std::string>> m_params;
             };
-        protected:
 
+            structured_data() { }
+
+            structured_data(const std::vector<sd_element> &c) : m_elements(c) { }
+
+            structured_data(std::vector<sd_element> &&c) : m_elements(std::move(c)) { }
+
+            /**
+             * Adds one element to the element list
+             * */
+            void add_element(const sd_element &c) {
+                m_elements.push_back(c);
+            }
+
+            /**
+             * Adds one element to the element list
+             * */
+            void add_element(sd_element &&c) {
+                m_elements.emplace_back(c);
+            }
+
+            template<typename SS>
+            friend SS &operator<<(SS &st, const structured_data &val) {
+                for (auto &i: val.m_elements) {
+                    st << i;
+                }
+                return st;
+            }
+
+        protected:
+            /**
+                List of elements contained in our structured container
+             */
+            std::vector<sd_element> m_elements;
         };
 
         /**
@@ -733,13 +857,56 @@ namespace umi {
 
                     int _result = snprintf(_maxBuffer.data(), _maxBuffer.size(), message, std::forward<Args>(args)...);
                     if (_result >= 0) {
-                        _messageToSend << "<" << get_priority(facility, severity) << ">"
+                        _messageToSend
+                        << "<" << get_priority(facility, severity) << ">"
                         << m_loggerLocalData.get_version() << " "
                         << umi::log::Timestamp::get_timestamp(m_loggerLocalData.get_precision()) << " "
                         << m_loggerLocalData.get_hostname() << " "
                         << app << " "
                         << getpid() << " "
                         << msgid << " - "
+                        << _maxBuffer.data();
+                        if (m_loggerLocalData.get_print()) {
+                            std::cout << _messageToSend.str() << '\n';
+                        }
+                        {
+                            std::unique_lock<std::mutex> _lock(m_queueMutex);
+                            // The elements are store as shared pointer to avoid problems with the async logging
+                            m_messageQueue.push(std::make_shared<std::string>(_messageToSend.str()));
+                        }
+                        m_ioservice.post([this]() { this->process_messages(); });
+                    }
+                }
+            }
+
+            /**
+             \brief Log a message into the system.
+            */
+            template<typename... Args>
+            void log(umi::log::facility facility,
+                     umi::log::severity severity,
+                     const std::string &app,
+                     const std::string &msgid,
+                     const umi::log::structured_data &st,
+                     const char *message, Args &&... args) {
+                if (get_priority(facility, severity) <=
+                    get_priority(m_loggerLocalData.get_max_facility(),
+                                 m_loggerLocalData.get_max_severity())) {
+                    std::stringstream _messageToSend;
+                    // The maximum buffer we can send is 64k
+                    std::array<char, 1024 * 64> _maxBuffer;
+
+                    int _result = snprintf(_maxBuffer.data(), _maxBuffer.size(), message, std::forward<Args>(args)...);
+                    if (_result >= 0) {
+                        _messageToSend
+                        << "<" << get_priority(facility, severity) << ">"
+                        << m_loggerLocalData.get_version() << " "
+                        << umi::log::Timestamp::get_timestamp(m_loggerLocalData.get_precision()) << " "
+                        << m_loggerLocalData.get_hostname() << " "
+                        << app << " "
+                        << getpid() << " "
+                        << msgid << " "
+                        << st << " "
                         << _maxBuffer.data();
                         if (m_loggerLocalData.get_print()) {
                             std::cout << _messageToSend.str() << '\n';
